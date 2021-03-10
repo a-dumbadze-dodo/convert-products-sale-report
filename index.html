@@ -2,17 +2,132 @@
 <html>
 
 <head>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js'></script>
 </head>>
 
 <body>
-    <p>Test</p>
+    <p>Choose XML file with GetProductsSaleReport results</p>
+    <br>
+    <input type='file' id='fileinput' />
+    <br>
+    <input type='button' id='btnLoad' value='Load' />
+    <br>
+    <textarea id='result' rows='10' cols='50'></textarea>
+    <br>
+    <input type='button' id='btnSave' value='Save' />
 
-    <input type="button" id="get_file" value="Grab file">
-    <input type="file" id="my_file">
 
-    <script type="text/javascript">
-        console.log('!!');
+    <script type='text/javascript'>
+
+        $(document).ready(function () {
+            $('#btnLoad').click(function () {
+                console.log('111');
+                var selectedFile = $('#fileinput').prop('files')[0];
+
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var xmlDoc = $.parseXML(e.target.result);
+                    var sales = $(xmlDoc).find("Sale");
+
+                    var resultValues = sales.toArray().reduce((acc, sale) => {
+                        var $sale = $(sale);
+                        var rows = $sale.children("Product").map((i, product) => {
+                            var $product = $(product);
+                            return {
+                                ProductID: $product.find("ProductID").text(),
+                                ProductName: $product.find("ProductName").text(),
+                                ProductPrice: $product.find("ProductPrice").text(),
+                                ProductPriceWithDiscount: $product.find("ProductPriceWithDiscount").text(),
+                                TaxRate: $product.find("TaxRate").text(),
+                                TaxValue: $product.find("TaxValue").text(),
+                                SalesType: $sale.find("SalesType").text(),
+                                PaymentType: $sale.find("PaymentType").text(),
+                                PaymentProviderName: $sale.find("PaymentProviderName").text(),
+                                UnitId: $sale.find("UnitId").text(),
+                                SaleDate: $sale.find("SaleDate").text(),
+                                SaleTime: $sale.find("SaleTime").text()
+                            }
+                        }).toArray();
+
+                        acc.push(rows);
+                        return acc;
+                    }, [])
+
+                    console.log(resultValues);
+                    $('#result').val(toCsv(resultValues));
+                }
+
+                reader.readAsText(selectedFile);
+            });
+
+            $('#btnSave').click(function () {
+                var textToWrite = $('#result').val();
+                var textFileAsBlob = new Blob([textToWrite], { type: 'text/plain' });
+
+                var selectedFile = $('#fileinput').prop('files')[0];
+                var fileName = selectedFile.name + '.csv';
+
+                if ('msSaveOrOpenBlob' in navigator) {
+                    navigator.msSaveOrOpenBlob(textFileAsBlob, fileName);
+                } else {
+                    var downloadLink = document.createElement('a');
+                    downloadLink.download = fileName;
+                    downloadLink.innerHTML = 'Download File';
+
+                    if ('webkitURL' in window) {
+                        // Chrome allows the link to be clicked without actually adding it to the DOM.
+                        downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+                    } else {
+                        // Firefox requires the link to be added to the DOM before it can be clicked.
+                        downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+                        downloadLink.click(function () {
+                            document.body.removeChild(event.target);
+                        });
+
+                        downloadLink.style.display = 'none';
+                        document.body.appendChild(downloadLink);
+                    }
+                    downloadLink.click();
+                }
+            });
+        });
+
+        function toCsv(rows) {
+            var titles = '' +
+                'ProductID;' +
+                'ProductName;' +
+                'ProductPrice;' +
+                'ProductPriceWithDiscount;' +
+                'TaxRate;' +
+                'TaxValue;' +
+                'SalesType;' +
+                'PaymentType;' +
+                'PaymentProviderName;' +
+                'UnitId;' +
+                'SaleDate;' +
+                'SaleTime;' +
+                '\n';
+
+            result = rows.flatMap(x => x);
+            result = result.map((row, i) => '' +
+                row.ProductID + ';' +
+                row.ProductName + ';' +
+                row.ProductPrice + ';' +
+                row.ProductPriceWithDiscount + ';' +
+                row.TaxRate + ';' +
+                row.TaxValue + ';' +
+                row.SalesType + ';' +
+                row.PaymentType + ';' +
+                row.PaymentProviderName + ';' +
+                row.UnitId + ';' +
+                row.SaleDate + ';' +
+                row.SaleTime + ';');
+
+            result = Array.prototype.join.call(result, '\n');
+            return titles + result;
+        }
+
     </script>
 </body>
+
 </html>
